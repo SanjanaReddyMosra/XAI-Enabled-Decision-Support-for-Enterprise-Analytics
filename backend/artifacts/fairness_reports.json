@@ -1,0 +1,106 @@
+{
+  "personal_status": {
+    "sensitive_attribute": "personal_status",
+    "demographic_parity_difference": 0.1611,
+    "equalized_odds_difference": 0.35,
+    "disparity_detected": true,
+    "groups": [
+      {
+        "group": "female div/dep/mar",
+        "sample_count": 43,
+        "selection_rate": 0.7442,
+        "accuracy": 0.7442,
+        "precision": 0.75,
+        "recall": 0.8889,
+        "tpr": 0.8889,
+        "fpr": 0.5
+      },
+      {
+        "group": "male div/sep",
+        "sample_count": 9,
+        "selection_rate": 0.6667,
+        "accuracy": 0.5556,
+        "precision": 0.5,
+        "recall": 0.75,
+        "tpr": 0.75,
+        "fpr": 0.6
+      },
+      {
+        "group": "male mar/wid",
+        "sample_count": 13,
+        "selection_rate": 0.6154,
+        "accuracy": 0.7692,
+        "precision": 0.875,
+        "recall": 0.7778,
+        "tpr": 0.7778,
+        "fpr": 0.25
+      },
+      {
+        "group": "male single",
+        "sample_count": 85,
+        "selection_rate": 0.7765,
+        "accuracy": 0.8,
+        "precision": 0.8636,
+        "recall": 0.8769,
+        "tpr": 0.8769,
+        "fpr": 0.45
+      }
+    ]
+  },
+  "age_group": {
+    "sensitive_attribute": "age_group",
+    "demographic_parity_difference": 0.2591,
+    "equalized_odds_difference": 0.3429,
+    "disparity_detected": true,
+    "groups": [
+      {
+        "group": "Age <= 25",
+        "sample_count": 21,
+        "selection_rate": 0.5238,
+        "accuracy": 0.8095,
+        "precision": 0.8182,
+        "recall": 0.8182,
+        "tpr": 0.8182,
+        "fpr": 0.2
+      },
+      {
+        "group": "Age > 25",
+        "sample_count": 129,
+        "selection_rate": 0.7829,
+        "accuracy": 0.7597,
+        "precision": 0.8119,
+        "recall": 0.8723,
+        "tpr": 0.8723,
+        "fpr": 0.5429
+      }
+    ]
+  },
+  "foreign_worker": {
+    "sensitive_attribute": "foreign_worker",
+    "demographic_parity_difference": 0.2621,
+    "equalized_odds_difference": 0.4667,
+    "disparity_detected": true,
+    "groups": [
+      {
+        "group": "no",
+        "sample_count": 5,
+        "selection_rate": 1.0,
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "group": "yes",
+        "sample_count": 145,
+        "selection_rate": 0.7379,
+        "accuracy": 0.7586,
+        "precision": 0.8037,
+        "recall": 0.86,
+        "tpr": 0.86,
+        "fpr": 0.4667
+      }
+    ]
+  }
+}

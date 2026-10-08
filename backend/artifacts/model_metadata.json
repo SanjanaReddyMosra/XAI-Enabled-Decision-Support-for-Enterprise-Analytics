@@ -1,0 +1,81 @@
+{
+  "model_name": "XGBoost Classifier",
+  "algorithm": "XGBClassifier",
+  "best_parameters": {
+    "n_estimators": 100,
+    "max_depth": 5,
+    "learning_rate": 0.1,
+    "subsample": 0.8,
+    "eval_metric": "logloss",
+    "random_state": 42
+  },
+  "random_state": 42,
+  "training_samples": 700,
+  "validation_samples": 150,
+  "test_samples": 150,
+  "original_feature_count": 20,
+  "transformed_feature_count": 61,
+  "validation_accuracy": 0.7066666666666667,
+  "global_shap_importance": [
+    {
+      "feature": "checking status no checking",
+      "mean_abs_shap": 0.5421
+    },
+    {
+      "feature": "credit amount",
+      "mean_abs_shap": 0.4762
+    },
+    {
+      "feature": "checking status 0",
+      "mean_abs_shap": 0.3012
+    },
+    {
+      "feature": "credit history critical/other existing credit",
+      "mean_abs_shap": 0.2995
+    },
+    {
+      "feature": "duration",
+      "mean_abs_shap": 0.2905
+    },
+    {
+      "feature": "savings status 100",
+      "mean_abs_shap": 0.2866
+    },
+    {
+      "feature": "age",
+      "mean_abs_shap": 0.2398
+    },
+    {
+      "feature": "purpose used car",
+      "mean_abs_shap": 0.1932
+    },
+    {
+      "feature": "purpose new car",
+      "mean_abs_shap": 0.1667
+    },
+    {
+      "feature": "residence since",
+      "mean_abs_shap": 0.1652
+    },
+    {
+      "feature": "employment 4 =X 7",
+      "mean_abs_shap": 0.1405
+    },
+    {
+      "feature": "purpose radio/tv",
+      "mean_abs_shap": 0.1322
+    },
+    {
+      "feature": "other payment plans none",
+      "mean_abs_shap": 0.1292
+    },
+    {
+      "feature": "installment commitment",
+      "mean_abs_shap": 0.1131
+    },
+    {
+      "feature": "property magnitude no known property",
+      "mean_abs_shap": 0.1119
+    }
+  ]
+}
