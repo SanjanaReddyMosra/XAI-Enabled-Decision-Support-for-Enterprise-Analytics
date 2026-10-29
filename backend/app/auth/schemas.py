@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -19,9 +20,9 @@ class RegisterRequest(BaseModel):
     years_of_experience: float = Field(..., ge=0, le=70)
     username: str = Field(..., min_length=3, max_length=30)
     password: str = Field(..., min_length=8, max_length=128)
-    confirm_password: Optional[str] = None
+    confirm_password: str = Field(..., min_length=8, max_length=128, description="Must match password")
     terms_accepted: bool = Field(..., description="Must accept Terms of Service")
-    privacy_accepted: Optional[bool] = False
+    privacy_accepted: bool = Field(..., description="Must acknowledge Privacy Policy")
 
     @field_validator("username")
     @classmethod
@@ -37,6 +38,26 @@ class RegisterRequest(BaseModel):
         clean = v.strip()
         if not PHONE_REGEX.match(clean):
             raise ValueError("Please provide a valid phone number.")
+        return clean
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, v: str) -> str:
+        clean = v.strip()
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", clean):
+            raise ValueError("Date of birth must be a valid date in YYYY-MM-DD format.")
+        try:
+            dob = datetime.strptime(clean, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("Date of birth is not a valid calendar date.")
+        today = datetime.utcnow().date()
+        if dob >= today:
+            raise ValueError("Date of birth cannot be in the future.")
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        if age < 18:
+            raise ValueError("User must be at least 18 years of age to register.")
+        if age > 120:
+            raise ValueError("Please provide a valid date of birth (maximum age is 120).")
         return clean
 
     @field_validator("password")
@@ -65,10 +86,30 @@ class RegisterRequest(BaseModel):
             raise ValueError("You must agree to the Terms of Service to register.")
         return v
 
+    @field_validator("privacy_accepted")
+    @classmethod
+    def validate_privacy(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError("You must acknowledge the Privacy Policy to register.")
+        return v
+
     @model_validator(mode="after")
-    def check_passwords_match(self):
-        if self.confirm_password is not None and self.password != self.confirm_password:
+    def check_passwords_and_sensible_ranges(self):
+        if not self.confirm_password:
+            raise ValueError("Password confirmation is required.")
+        if self.password != self.confirm_password:
             raise ValueError("Passwords do not match.")
+        
+        # Cross-validate experience vs age
+        try:
+            dob = datetime.strptime(self.date_of_birth, "%Y-%m-%d").date()
+            today = datetime.utcnow().date()
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            if self.years_of_experience > max(0, age - 14):
+                raise ValueError(f"Years of experience ({self.years_of_experience}) cannot exceed plausible career duration based on age ({age}).")
+        except ValueError as ve:
+            if "Years of experience" in str(ve):
+                raise ve
         return self
 
 class LoginRequest(BaseModel):
@@ -141,4 +182,5 @@ class ForgotPasswordRequest(BaseModel):
 
 class ForgotPasswordResponse(BaseModel):
     success: bool = True
+    available: bool = True
     message: str

@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -168,12 +169,72 @@ def change_user_password(db: Session, user: User, req: ChangePasswordRequest) ->
     }
 
 def request_password_reset(db: Session, email: str) -> dict:
-    """Safely handles password recovery requests without leaking account existence."""
+    """
+    Handles password recovery requests.
+    If SMTP email delivery is configured, generates a secure, signed, time-limited token
+    and dispatches a password reset email.
+    If email delivery is not configured, explicitly returns an accurate notice that email
+    recovery is unavailable on this instance rather than deceptively implying an email was sent.
+    """
+    smtp_host = os.getenv("SMTP_HOST", "").strip()
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+
+    if not smtp_host or not smtp_user:
+        return {
+            "success": False,
+            "available": False,
+            "message": "Password recovery via email is currently unavailable because SMTP email delivery is not configured on this server. Please contact your system administrator to reset your credentials."
+        }
+
     clean_email = email.strip().lower()
     user = db.query(User).filter(User.email.ilike(clean_email)).first()
-    # In enterprise production, send an email with a secure time-limited token.
-    # We return a generic message to prevent account discovery.
+
+    if user and user.is_active:
+        from backend.app.auth.security import JWT_SECRET_KEY, JWT_ALGORITHM
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
+        # Generate a 1-hour secure signed reset token
+        reset_payload = {
+            "sub": str(user.id),
+            "email": user.email,
+            "type": "password_reset",
+            "exp": datetime.utcnow() + timedelta(hours=1),
+            "iat": datetime.utcnow()
+        }
+        reset_token = jwt.encode(reset_payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        
+        frontend_url = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+        reset_link = f"{frontend_url}/reset-password?token={reset_token}"
+        
+        try:
+            smtp_port = int(os.getenv("SMTP_PORT", "587"))
+            smtp_pass = os.getenv("SMTP_PASSWORD", "")
+            smtp_from = os.getenv("SMTP_FROM", smtp_user)
+            
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = "XAI Decision Platform — Password Reset Request"
+            msg["From"] = smtp_from
+            msg["To"] = user.email
+            
+            text_body = f"Hello {user.first_name},\n\nA password reset was requested for your account.\nUse the following secure link to reset your password:\n{reset_link}\n\nThis link expires in 60 minutes.\nIf you did not request this, please ignore this email."
+            msg.attach(MIMEText(text_body, "plain"))
+            
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [user.email], msg.as_string())
+        except Exception as e:
+            print("Password reset email dispatch failure:", e)
+            return {
+                "success": False,
+                "available": True,
+                "message": f"Failed to dispatch reset email: {e}"
+            }
+
     return {
         "success": True,
-        "message": "If an account matches that email address, password recovery instructions have been initiated."
+        "available": True,
+        "message": "If an account matches that email address, password recovery instructions have been sent."
     }

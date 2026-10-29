@@ -48,10 +48,14 @@ def save_analysis(
         updated_at=datetime.utcnow()
     )
 
-    db.add(record)
-    db.commit()
-    db.refresh(record)
-    return record
+    try:
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        return record
+    except Exception as e:
+        db.rollback()
+        raise e
 
 def get_user_analyses(
     db: Session,

@@ -81,6 +81,10 @@ export const RegisterPage = () => {
       errors.terms_accepted = 'You must accept the Terms of Service to create an account.';
     }
 
+    if (!formData.privacy_accepted) {
+      errors.privacy_accepted = 'You must acknowledge the Privacy Policy to create an account.';
+    }
+
     return errors;
   };
 

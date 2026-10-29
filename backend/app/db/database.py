@@ -1,21 +1,33 @@
 import os
 import json
+from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+# Load environment configuration from project root .env consistently
+_root_dir = Path(__file__).resolve().parent.parent.parent.parent
+_env_path = _root_dir / ".env"
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv()
+
 # Database configuration: defaults to SQLite for local zero-dependency operation,
 # or connects to PostgreSQL if DATABASE_URL environment variable is provided.
-RAW_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/artifacts/predictions.db")
+RAW_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/artifacts/predictions.db").strip()
 
-# Fix common Heroku/Render/AWS Postgres URL format 'postgres://' -> 'postgresql://'
+# Normalize common PostgreSQL URL format 'postgres://' -> 'postgresql://'
 if RAW_DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = RAW_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 else:
     DATABASE_URL = RAW_DATABASE_URL
 
-# For SQLite, ensure directory exists and check_same_thread=False
+# Configure engine parameters strictly by dialect
 connect_args = {}
+engine_kwargs = {}
+
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
     # Ensure sqlite directory exists
@@ -24,12 +36,28 @@ if DATABASE_URL.startswith("sqlite"):
         db_dir = os.path.dirname(os.path.abspath(sqlite_path))
         if db_dir:
             os.makedirs(db_dir, exist_ok=True)
+elif DATABASE_URL.startswith("postgresql"):
+    engine_kwargs.update({
+        "pool_pre_ping": True,
+        "pool_size": int(os.getenv("DB_POOL_SIZE", "10")),
+        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "20")),
+        "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "30")),
+    })
+else:
+    raise ValueError(
+        f"Unsupported DATABASE_URL scheme in '{DATABASE_URL}'. "
+        "Supported configurations are PostgreSQL (postgresql://) and SQLite (sqlite:///)."
+    )
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True if not DATABASE_URL.startswith("sqlite") else False
-)
+try:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args=connect_args,
+        **engine_kwargs
+    )
+except Exception as eng_err:
+    raise RuntimeError(f"Failed to create database engine for '{DATABASE_URL}': {eng_err}") from eng_err
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -55,7 +83,10 @@ def init_db():
         import backend.app.models.analysis  # Ensures Analysis model is registered
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print("Database initialization notice:", e)
+        if not DATABASE_URL.startswith("sqlite"):
+            raise RuntimeError(f"Database initialization failure on '{DATABASE_URL}': {e}") from e
+        else:
+            print("Database initialization notice:", e)
 
 # Run initial table creation
 init_db()
@@ -104,14 +135,18 @@ def log_prediction_to_db(
     finally:
         db.close()
 
-def get_recent_prediction_logs(limit: int = 20):
-    """Retrieves recent decision audit records."""
+def get_recent_prediction_logs(limit: int = 20, user_id: int = None):
+    """Retrieves recent decision audit records, strictly filtered by user_id when provided."""
     db = SessionLocal()
     try:
-        records = db.query(PredictionAuditLog).order_by(PredictionAuditLog.timestamp.desc()).limit(limit).all()
+        query = db.query(PredictionAuditLog)
+        if user_id is not None:
+            query = query.filter(PredictionAuditLog.user_id == user_id)
+        records = query.order_by(PredictionAuditLog.timestamp.desc()).limit(limit).all()
         return [
             {
                 "id": r.id,
+                "user_id": r.user_id,
                 "timestamp": r.timestamp.isoformat() if r.timestamp else None,
                 "model_version": r.model_version,
                 "prediction_class": r.prediction_class,

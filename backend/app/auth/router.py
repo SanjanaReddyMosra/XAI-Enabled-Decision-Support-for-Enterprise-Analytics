@@ -52,14 +52,15 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     result = authenticate_user(db, payload)
     
     # Set HttpOnly cookie for production session security
+    from backend.app.auth.security import COOKIE_SECURE, COOKIE_SAMESITE
     max_age = 7 * 86400 if payload.remember_me else 86400
     response.set_cookie(
         key="access_token",
         value=result["access_token"],
         httponly=True,
         max_age=max_age,
-        samesite="lax",
-        secure=False  # True in production HTTPS
+        samesite=COOKIE_SAMESITE,
+        secure=COOKIE_SECURE
     )
     
     return result
@@ -67,7 +68,13 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
 @auth_router.post("/logout")
 def logout(response: Response):
     """Clears authentication cookies and invalidates local session."""
-    response.delete_cookie(key="access_token")
+    from backend.app.auth.security import COOKIE_SECURE, COOKIE_SAMESITE
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite=COOKIE_SAMESITE,
+        secure=COOKIE_SECURE
+    )
     return {
         "success": True,
         "message": "Successfully signed out."

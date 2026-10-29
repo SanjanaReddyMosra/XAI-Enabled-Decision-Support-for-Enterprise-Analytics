@@ -33,7 +33,7 @@ from backend.app.models.model_loader import (
     get_multi_model_comparison
 )
 from backend.app.models.train_xgboost import train_xgboost_model
-from backend.app.auth.dependencies import get_db, get_optional_current_user
+from backend.app.auth.dependencies import get_db, get_optional_current_user, get_current_user, require_admin
 from backend.app.auth.models import User
 from backend.app.auth.router import auth_router
 from backend.app.routers.analyses import analyses_router
@@ -129,29 +129,44 @@ def analyze_applicant(
             features=applicant_dict,
             customer_id=payload.customer_id,
             model_name=payload.model_name or "xgboost",
-            confidence_level=payload.confidence_level or 0.90
+            confidence_level=payload.confidence_level or 0.90,
+            user_id=current_user.id if current_user else None
         )
 
-        # Persistence to PostgreSQL/SQLite if user is authenticated
+        # Persistence to PostgreSQL/SQLite only if user is authenticated and persistence requested
         if current_user:
-            try:
-                saved = save_analysis(
-                    db=db,
-                    user_id=current_user.id,
-                    features=applicant_dict,
-                    master_result=result,
-                    analysis_name=payload.analysis_name,
-                    applicant_reference=payload.applicant_reference,
-                    model_name=payload.model_name or "xgboost"
-                )
-                result["analysis_id"] = saved.id
-                result["created_at"] = saved.created_at.isoformat() if saved.created_at else None
-                result["analysis_name"] = saved.analysis_name
-                result["applicant_reference"] = saved.applicant_reference
-                result["model_version"] = saved.model_version
-                result["status"] = saved.status
-            except Exception as save_err:
-                print("Persistent analysis storage notice:", save_err)
+            if payload.save_to_history is not False:
+                try:
+                    saved = save_analysis(
+                        db=db,
+                        user_id=current_user.id,
+                        features=applicant_dict,
+                        master_result=result,
+                        analysis_name=payload.analysis_name,
+                        applicant_reference=payload.applicant_reference,
+                        model_name=payload.model_name or "xgboost"
+                    )
+                    # Return analysis ID and explicit status only after successful commit
+                    result["analysis_id"] = saved.id
+                    result["persistence_status"] = "saved"
+                    result["created_at"] = saved.created_at.isoformat() if saved.created_at else None
+                    result["analysis_name"] = saved.analysis_name
+                    result["applicant_reference"] = saved.applicant_reference
+                    result["model_version"] = saved.model_version
+                    result["status"] = saved.status
+                except Exception as save_err:
+                    db.rollback()
+                    # Explicitly mark persistence failure; never report an analysis_id if save failed
+                    result["analysis_id"] = None
+                    result["persistence_status"] = "failed"
+                    result["persistence_error"] = str(save_err)
+                    print(f"Persistent analysis storage failure: {save_err}")
+            else:
+                result["analysis_id"] = None
+                result["persistence_status"] = "skipped"
+        else:
+            result["analysis_id"] = None
+            result["persistence_status"] = "unauthenticated"
 
         return result
     except Exception as e:
@@ -223,7 +238,10 @@ def model_info(model_name: str = Query("xgboost")):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/model/train")
-def train_model(payload: XGBoostTrainRequest):
+def train_model(
+    payload: XGBoostTrainRequest,
+    current_user: User = Depends(get_current_user)
+):
     try:
         res = train_xgboost_model(
             n_estimators=payload.n_estimators or 100,
@@ -384,10 +402,18 @@ def dashboard_summary(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/predictions/history")
-def get_prediction_history(limit: int = Query(20, ge=1, le=100)):
-    """Returns persistent audit log of decisions saved to database."""
+def get_prediction_history(
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Returns persistent audit log of decisions saved to database.
+    Strictly isolated: ordinary users retrieve only their own audit logs;
+    administrators can inspect all system audit logs.
+    """
     try:
         from backend.app.db.database import get_recent_prediction_logs
-        return get_recent_prediction_logs(limit=limit)
+        user_filter = None if current_user.role == "admin" else current_user.id
+        return get_recent_prediction_logs(limit=limit, user_id=user_filter)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

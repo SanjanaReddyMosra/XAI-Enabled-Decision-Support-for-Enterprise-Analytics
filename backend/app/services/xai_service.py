@@ -410,7 +410,8 @@ def execute_master_analysis(
     features: Dict[str, Any],
     customer_id: Optional[int] = None,
     model_name: str = "xgboost",
-    confidence_level: float = 0.90
+    confidence_level: float = 0.90,
+    user_id: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     MASTER USER JOURNEY WORKFLOW:
@@ -479,7 +480,8 @@ def execute_master_analysis(
             conformal_set=mapie_res["prediction_set"],
             top_shap=top_factors,
             features=features,
-            model_version=f"{model_name}-v1.0"
+            model_version=f"{model_name}-v1.0",
+            user_id=user_id
         )
     except Exception as log_err:
         print("Audit logging notice:", log_err)

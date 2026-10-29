@@ -40,7 +40,8 @@ export const PredictionProvider = ({ children }) => {
             const masterRes = await api.analyze({
               applicant: firstSample.features,
               customer_id: firstSample.customer_id,
-              model_name: 'xgboost'
+              model_name: 'xgboost',
+              save_to_history: false
             });
             setMasterAnalysisResult(masterRes);
             setPredictionResult({
@@ -83,7 +84,8 @@ export const PredictionProvider = ({ children }) => {
         model_name: modelName,
         confidence_level: confidenceLevel,
         analysis_name: analysisName,
-        applicant_reference: applicantReference
+        applicant_reference: applicantReference,
+        save_to_history: true
       });
       setMasterAnalysisResult(res);
       const predNorm = {

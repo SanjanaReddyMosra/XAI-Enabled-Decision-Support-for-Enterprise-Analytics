@@ -563,21 +563,21 @@ export const PredictionPage = () => {
             ) : predData ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {/* Persistent DB Storage Badge */}
-                {(analysis?.analysis_id || analysis?.audit_id) && (
+                {analysis?.persistence_status === 'saved' && analysis?.analysis_id ? (
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '8px 12px',
-                    backgroundColor: '#F8FAFC',
+                    backgroundColor: '#F0FDF4',
                     borderRadius: '6px',
-                    border: '1px solid var(--border-default)',
+                    border: '1px solid #BBF7D0',
                     fontSize: '12px'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--navy-deep)' }}>
-                      <ShieldCheck size={14} color="var(--teal-primary)" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--green-forest)' }}>
+                      <ShieldCheck size={14} color="var(--green-forest)" />
                       <span>
-                        Saved in Database: <strong>Record #{analysis.analysis_id || analysis.audit_id}</strong>
+                        Saved in Database: <strong>Analysis #{analysis.analysis_id}</strong>
                         {analysis.created_at && ` • ${new Date(analysis.created_at).toLocaleTimeString()}`}
                       </span>
                     </div>
@@ -590,7 +590,22 @@ export const PredictionPage = () => {
                       <span>View in History</span>
                     </Link>
                   </div>
-                )}
+                ) : analysis?.persistence_status === 'failed' ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    backgroundColor: '#FEF2F2',
+                    borderRadius: '6px',
+                    border: '1px solid #FECACA',
+                    fontSize: '12px',
+                    color: 'var(--coral-warm)'
+                  }}>
+                    <AlertCircle size={14} />
+                    <span>Inference generated, but database persistence failed.</span>
+                  </div>
+                ) : null}
                 <div
                   style={{
                     padding: '20px',

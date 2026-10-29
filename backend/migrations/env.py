@@ -1,6 +1,8 @@
 import os
 import sys
+from pathlib import Path
 from logging.config import fileConfig
+from dotenv import load_dotenv
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -9,6 +11,14 @@ from alembic import context
 
 # Add backend directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+# Load root .env
+_root_dir = Path(__file__).resolve().parent.parent.parent
+_env_path = _root_dir / ".env"
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -27,7 +37,8 @@ import backend.app.models.analysis
 target_metadata = Base.metadata
 
 def get_url():
-    raw_url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    raw_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url") or "sqlite:///./backend/artifacts/predictions.db"
+    raw_url = raw_url.strip()
     if raw_url.startswith("postgres://"):
         return raw_url.replace("postgres://", "postgresql://", 1)
     return raw_url

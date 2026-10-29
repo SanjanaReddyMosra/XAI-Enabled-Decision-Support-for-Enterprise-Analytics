@@ -58,6 +58,7 @@ class AnalyzeRequest(BaseModel):
     confidence_level: Optional[float] = 0.90
     analysis_name: Optional[str] = None
     applicant_reference: Optional[str] = None
+    save_to_history: Optional[bool] = True
 
 class PredictionDetail(BaseModel):
     prediction_class: int
@@ -121,6 +122,8 @@ class MasterAnalysisResponse(BaseModel):
     customer_id: Optional[int] = None
     audit_id: Optional[int] = None
     analysis_id: Optional[int] = None
+    persistence_status: Optional[str] = "not_persisted"
+    persistence_error: Optional[str] = None
     created_at: Optional[str] = None
     model_version: Optional[str] = "xgboost-v1.0"
     status: Optional[str] = "completed"

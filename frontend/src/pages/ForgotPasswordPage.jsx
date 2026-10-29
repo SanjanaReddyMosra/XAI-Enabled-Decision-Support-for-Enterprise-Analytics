@@ -20,9 +20,13 @@ export const ForgotPasswordPage = () => {
 
     try {
       const res = await forgotPassword(email.trim());
-      setMessage(res.message || 'If an account matches that email, reset instructions have been generated.');
+      if (res.available === false || res.success === false) {
+        setErrorMessage(res.message);
+      } else {
+        setMessage(res.message || 'If an account matches that email, reset instructions have been generated.');
+      }
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to request password reset.');
+      setErrorMessage(err.response?.data?.detail || err.message || 'Failed to request password reset.');
     } finally {
       setLoading(false);
     }

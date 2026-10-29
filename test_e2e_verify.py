@@ -92,9 +92,11 @@ def test_full_system(base_url="http://127.0.0.1:8000"):
     print(f"[PASS] Persistent History: Analysis #{saved_item['id']} successfully retrieved from PostgreSQL.")
 
     # 6. Database Audit Persistence
-    audit_logs = requests.get(f"{base_url}/api/predictions/history", timeout=5).json()
+    unauth_audit = requests.get(f"{base_url}/api/predictions/history", timeout=5)
+    assert unauth_audit.status_code == 401, "Unauthenticated access to predictions/history must be blocked"
+    audit_logs = requests.get(f"{base_url}/api/predictions/history", headers=headers, timeout=5).json()
     assert len(audit_logs) > 0, "No audit records found"
-    print(f"[PASS] Database audit log: {len(audit_logs)} records persisted.")
+    print(f"[PASS] Database audit log: Protected endpoint verified; {len(audit_logs)} user audit records persisted.")
 
     print("=== ALL ACCEPTANCE CRITERIA VERIFIED SUCCESSFULLY ===")
 
