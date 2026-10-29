@@ -7,8 +7,10 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 // Protected Application Pages
+
 import Dashboard from './pages/Dashboard';
 import DatasetPage from './pages/DatasetPage';
 import DataQualityPage from './pages/DataQualityPage';
@@ -41,6 +43,11 @@ export const router = createBrowserRouter([
     path: '/forgot-password',
     element: <ForgotPasswordPage />
   },
+  {
+    path: '/reset-password',
+    element: <ResetPasswordPage />
+  },
+
 
   // Protected Application Routes
   {

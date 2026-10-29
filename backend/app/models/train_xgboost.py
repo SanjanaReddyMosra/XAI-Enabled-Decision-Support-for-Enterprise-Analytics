@@ -8,9 +8,16 @@ from typing import Dict, Any, Optional
 from backend.app.preprocessing.pipeline import get_saved_splits
 from backend.app.models.evaluation import evaluate_model_on_test_set
 
+BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ARTIFACTS_DIR = os.path.join(BACKEND_DIR, "artifacts")
+if not os.path.exists(ARTIFACTS_DIR):
+    ARTIFACTS_DIR = os.path.join(BACKEND_DIR, "backend", "artifacts")
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "models")
-XGBOOST_MODEL_PATH = os.path.join(MODELS_DIR, "xgboost_model.joblib")
+
+# Primary path used by application inference code (xai_service.py)
+XGBOOST_MODEL_PATH = os.path.join(ARTIFACTS_DIR, "xgboost_model.joblib")
 XGBOOST_EVAL_PATH = os.path.join(MODELS_DIR, "xgboost_eval.joblib")
+
 
 def train_xgboost_model(
     n_estimators: int = 100,
@@ -76,10 +83,22 @@ def train_xgboost_model(
     val_accuracy = float(model.score(X_val, y_val))
     test_eval = evaluate_model_on_test_set(model, X_test, y_test, model_name="XGBoost")
 
-    # Persist model and evaluation metrics
-    os.makedirs(MODELS_DIR, exist_ok=True)
+    # Persist model to the path actually used by the application's inference code
+    os.makedirs(ARTIFACTS_DIR, exist_ok=True)
     joblib.dump(model, XGBOOST_MODEL_PATH)
+    os.makedirs(MODELS_DIR, exist_ok=True)
     joblib.dump(test_eval, XGBOOST_EVAL_PATH)
+
+    # Refresh in-memory inference artifact cache if loaded
+    try:
+        from backend.app.services.xai_service import _ARTIFACT_CACHE
+        import shap
+        _ARTIFACT_CACHE["model"] = model
+        _ARTIFACT_CACHE["evaluation"] = test_eval
+        _ARTIFACT_CACHE["explainer"] = shap.TreeExplainer(model)
+    except Exception:
+        pass
+
 
     return {
         "status": "success",

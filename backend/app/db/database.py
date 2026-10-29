@@ -16,13 +16,33 @@ else:
 
 # Database configuration: defaults to SQLite for local zero-dependency operation,
 # or connects to PostgreSQL if DATABASE_URL environment variable is provided.
-RAW_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/artifacts/predictions.db").strip()
+_default_sqlite_path = (_root_dir / "backend" / "artifacts" / "predictions.db").resolve()
+RAW_DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{_default_sqlite_path.as_posix()}").strip()
 
 # Normalize common PostgreSQL URL format 'postgres://' -> 'postgresql://'
 if RAW_DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = RAW_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+elif RAW_DATABASE_URL.startswith("sqlite:///"):
+    sqlite_subpath = RAW_DATABASE_URL[10:]
+    if sqlite_subpath and not sqlite_subpath.startswith(":memory:"):
+        p = Path(sqlite_subpath)
+        if not p.is_absolute():
+            # Anchor relative paths consistently to project directory
+            norm_str = str(p).replace("\\", "/")
+            if norm_str.startswith("./artifacts") or norm_str.startswith("artifacts"):
+                abs_p = (_root_dir / "backend" / p).resolve()
+            elif norm_str.startswith("./backend/artifacts") or norm_str.startswith("backend/artifacts"):
+                abs_p = (_root_dir / p).resolve()
+            else:
+                abs_p = (_root_dir / p).resolve()
+            DATABASE_URL = f"sqlite:///{abs_p.as_posix()}"
+        else:
+            DATABASE_URL = f"sqlite:///{p.resolve().as_posix()}"
+    else:
+        DATABASE_URL = RAW_DATABASE_URL
 else:
     DATABASE_URL = RAW_DATABASE_URL
+
 
 # Configure engine parameters strictly by dialect
 connect_args = {}

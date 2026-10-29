@@ -12,7 +12,8 @@ import {
   Scale,
   ExternalLink,
   History,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { usePrediction } from '../context/PredictionContext';
 import SectionHeader from '../components/common/SectionHeader';

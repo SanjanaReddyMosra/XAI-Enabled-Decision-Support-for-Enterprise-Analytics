@@ -37,11 +37,28 @@ import backend.app.models.analysis
 target_metadata = Base.metadata
 
 def get_url():
-    raw_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url") or "sqlite:///./backend/artifacts/predictions.db"
+    _default_sqlite = (_root_dir / "backend" / "artifacts" / "predictions.db").resolve()
+    raw_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url") or f"sqlite:///{_default_sqlite.as_posix()}"
     raw_url = raw_url.strip()
     if raw_url.startswith("postgres://"):
         return raw_url.replace("postgres://", "postgresql://", 1)
+    elif raw_url.startswith("sqlite:///"):
+        sub = raw_url[10:]
+        if sub and not sub.startswith(":memory:"):
+            p = Path(sub)
+            if not p.is_absolute():
+                norm = str(p).replace("\\", "/")
+                if norm.startswith("./artifacts") or norm.startswith("artifacts"):
+                    abs_p = (_root_dir / "backend" / p).resolve()
+                elif norm.startswith("./backend/artifacts") or norm.startswith("backend/artifacts"):
+                    abs_p = (_root_dir / p).resolve()
+                else:
+                    abs_p = (_root_dir / p).resolve()
+                return f"sqlite:///{abs_p.as_posix()}"
+            else:
+                return f"sqlite:///{p.resolve().as_posix()}"
     return raw_url
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
