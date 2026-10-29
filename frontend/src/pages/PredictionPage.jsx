@@ -10,7 +10,9 @@ import {
   GitBranch,
   BarChart3,
   Scale,
-  ExternalLink
+  ExternalLink,
+  History,
+  ShieldCheck
 } from 'lucide-react';
 import { usePrediction } from '../context/PredictionContext';
 import SectionHeader from '../components/common/SectionHeader';
@@ -52,6 +54,8 @@ export const PredictionPage = () => {
   const [formData, setFormData] = useState(selectedInput || defaultFormValues);
   const [activeModel, setActiveModel] = useState('xgboost');
   const [confidenceLevel] = useState(0.90);
+  const [analysisName, setAnalysisName] = useState('');
+  const [applicantReference, setApplicantReference] = useState('');
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({
@@ -67,7 +71,7 @@ export const PredictionPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await runMasterAnalysis(formData, null, activeModel, confidenceLevel);
+    await runMasterAnalysis(formData, null, activeModel, confidenceLevel, analysisName, applicantReference);
   };
 
   // Derive display values from master analysis or fallback to predictionResult
@@ -146,6 +150,37 @@ export const PredictionPage = () => {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
             
+            {/* Optional Analysis Metadata */}
+            <div style={{ padding: '12px 14px', backgroundColor: '#FAFCFD', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+              <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--navy-deep)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                Analysis Tagging & Metadata (Optional)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11.5px' }}>Analysis Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={analysisName}
+                    onChange={(e) => setAnalysisName(e.target.value)}
+                    placeholder="e.g. Q4 Underwriting Audit"
+                    style={{ fontSize: '12.5px', padding: '6px 10px' }}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11.5px' }}>Applicant Reference</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={applicantReference}
+                    onChange={(e) => setApplicantReference(e.target.value)}
+                    placeholder="e.g. APP-GER-2026-09"
+                    style={{ fontSize: '12.5px', padding: '6px 10px' }}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* 1. CREDIT PROFILE */}
             <div>
               <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--navy-deep)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -527,6 +562,35 @@ export const PredictionPage = () => {
               </div>
             ) : predData ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Persistent DB Storage Badge */}
+                {(analysis?.analysis_id || analysis?.audit_id) && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    backgroundColor: '#F8FAFC',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-default)',
+                    fontSize: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--navy-deep)' }}>
+                      <ShieldCheck size={14} color="var(--teal-primary)" />
+                      <span>
+                        Saved in Database: <strong>Record #{analysis.analysis_id || analysis.audit_id}</strong>
+                        {analysis.created_at && ` • ${new Date(analysis.created_at).toLocaleTimeString()}`}
+                      </span>
+                    </div>
+                    <Link
+                      to="/history"
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', padding: '3px 8px', fontSize: '11.5px' }}
+                    >
+                      <History size={12} />
+                      <span>View in History</span>
+                    </Link>
+                  </div>
+                )}
                 <div
                   style={{
                     padding: '20px',

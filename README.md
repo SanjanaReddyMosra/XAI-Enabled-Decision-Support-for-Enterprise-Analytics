@@ -1,218 +1,213 @@
 # XAI-Enabled Decision Support for Enterprise Analytics
-### Counterfactual Explanations, Uncertainty, and Fairness Audits
+### Counterfactual Explanations, Uncertainty, Fairness Audits, Authentication & Persistent History
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-19.0+-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![XGBoost](https://img.shields.io/badge/XGBoost-2.0+-EB5424.svg)](https://xgboost.readthedocs.io)
 [![SHAP](https://img.shields.io/badge/SHAP-TreeExplainer-blue.svg)](https://shap.readthedocs.io)
 [![DiCE](https://img.shields.io/badge/DiCE-Counterfactuals-brightgreen.svg)](https://github.com/interpretml/DiCE)
 [![MAPIE](https://img.shields.io/badge/MAPIE-Conformal_Prediction-amber.svg)](https://mapie.readthedocs.io)
 [![Fairlearn](https://img.shields.io/badge/Fairlearn-Algorithmic_Fairness-purple.svg)](https://fairlearn.org)
 
-An enterprise-grade, end-to-end Explainable AI (XAI) Decision Support System for credit risk assessment. The platform evaluates borrower creditworthiness using an **XGBoost Classifier** trained on the **UCI Statlog German Credit Data**, accompanied by multidimensional interpretability: **SHAP** feature attribution, **DiCE** actionable counterfactual recourse, **MAPIE** distribution-free conformal uncertainty prediction sets, and **Fairlearn** demographic parity/equalized odds audits.
+An enterprise-grade, end-to-end Explainable AI (XAI) Decision Support System for credit risk assessment. The application features **real user registration and authentication**, **PostgreSQL / SQLite persistence**, **saved user profiles**, credit-risk prediction using **XGBoost Classifier** on the **UCI Statlog German Credit Data**, accompanied by multidimensional interpretability: **SHAP** feature attribution, **DiCE** actionable counterfactual recourse, **MAPIE** distribution-free conformal uncertainty prediction sets, **Fairlearn** demographic parity/equalized odds audits, and **persistent historical retrieval**.
 
 ---
 
-## 🎯 Core User Journey
+## 🎯 Key Capabilities & System Features
 
-1. **Borrower Ingestion**: Underwriters enter a 20-attribute German Credit profile across structured sections (Credit Profile, Financial Profile, Personal Profile, Asset/Housing, Other Credit Information) or select quick benchmark presets.
-2. **Single-Click Execution (`POST /api/analyze`)**: In a single round-trip, the Python / FastAPI backend executes:
-   - Request schema validation via Pydantic
-   - Preprocessing with fitted `CreditPreprocessor` (zero data leakage)
-   - Real-time XGBoost inference (discrete class + calibrated probabilities)
-   - SHAP TreeExplainer additive decomposition
-   - DiCE-ML counterfactual recourse generation
-   - MAPIE split conformal classification prediction sets
-   - Fairlearn algorithmic fairness disparity comparison
-   - Persistent decision logging to PostgreSQL / SQLite
-3. **Enterprise Visualization**: The React frontend progressively renders a decision hierarchy:
-   - **Model Decision**: Classification outcome with probability distribution bar
-   - **Why?**: SHAP attribution chart detailing top drivers increasing/decreasing risk
-   - **What If?**: DiCE recourse table highlighting minimum perturbations to flip decisions
-   - **How Certain?**: MAPIE conformal prediction set guaranteeing $(1 - \alpha) = 90\%$ marginal coverage
-   - **Fairness Context**: Demographic parity and equalized odds disparity metrics
-   - **Executive Synthesis**: Underwriting decision-support summary
+1. **Authentication & User Profile Management**:
+   - `/register`: Comprehensive onboarding collecting Personal Info, Professional Info, Account Credentials (with real-time password criteria checklist), and mandatory Terms of Service / Privacy Policy consent.
+   - `/login`: Dual identifier authentication via corporate email or username with secure password verification, remember-me duration, and HttpOnly session cookies.
+   - `/profile`: View persistent analyst registration records, edit permitted non-sensitive fields, review account creation and last-login timestamps.
+   - `/change-password`: Cryptographic password update verifying existing password and setting a 12-round bcrypt hash.
+   - `/forgot-password`: Secure access recovery request flow.
+   - Route protection: All operational platform pages are protected by `ProtectedRoute`.
+
+2. **Core Decision Support Journey (`POST /api/analyze`)**:
+   - Underwriters enter a 20-attribute German Credit applicant profile (or select benchmark presets).
+   - Real-time XGBoost inference (discrete outcome + calibrated probabilities).
+   - Exact SHAP additive contributions identifying top risk drivers.
+   - DiCE-ML actionable counterfactual recourse paths under valid feature bounds.
+   - MAPIE conformal prediction set guaranteeing $(1 - \alpha) = 90\%$ marginal coverage.
+   - Fairlearn algorithmic fairness audit across sensitive demographic attributes.
+   - **Automatic Persistence**: Completed decisions, predictions, explanations, and applicant inputs are saved immediately to PostgreSQL / SQLite and securely associated with the authenticated user ID.
+
+3. **Persistent Analysis History (`/history`)**:
+   - Logged-in users can view, filter, sort, and paginate their previously executed decisions.
+   - Multi-tenant query isolation: Users access strictly their own saved analyses (unauthorized queries return 404).
+   - **Direct Retrieval Without Recalculation**: Clicking **View Details** displays the original saved snapshot (applicant inputs, probabilities, SHAP drivers, DiCE recourse, and MAPIE conformal sets) as originally evaluated.
+   - Historical analyses record their original model version (e.g. `xgboost-v1.0`).
+
+4. **Dynamic Dashboard Personalization**:
+   - Calculates real statistics from persisted database records: total analyses, good/bad risk counts, recent analyses, and active model version.
 
 ---
 
-## 🏗️ Architecture & Technologies
+## 🏗️ Architecture & Technology Stack
 
 | Layer | Technologies | Responsibilities |
 | :--- | :--- | :--- |
-| **Frontend** | React 19, Vite, Recharts, Lucide-React, CSS3 Design System | Light enterprise interface, interactive charts, forms, context state |
-| **Backend API** | Python, FastAPI, Pydantic, Uvicorn | RESTful endpoints, asynchronous orchestration, schema enforcement |
+| **Frontend** | React 19, Vite, Recharts, Lucide-React, CSS3 | Enterprise dashboard, authentication views, interactive charts, forms, context state |
+| **Backend API** | Python 3.11, FastAPI, Pydantic, Uvicorn | RESTful endpoints, JWT authentication, authorization, session management |
+| **Database** | PostgreSQL 16 (Production) / SQLite (Zero-dep local fallback) | `users`, `analyses`, and `prediction_audit_logs` persistence |
+| **ORM & Migrations** | SQLAlchemy 2.0, Alembic | Declarative data models, connection pooling, automated database migrations |
 | **ML Models** | XGBoost Classifier, LightGBM, Scikit-Learn | Stratified 70/15/15 pipeline, asymmetric 5:1 cost optimization |
 | **Explainability** | SHAP (`TreeExplainer`) | Local feature attributions & global feature importance ranking |
 | **Counterfactuals** | DiCE-ML (`dice_ml.Dice`) | Actionable recourse paths under valid feature domain bounds |
 | **Uncertainty** | MAPIE 1.5.0 (`SplitConformalClassifier`) | Distribution-free conformal prediction sets with coverage guarantees |
 | **Fairness** | Fairlearn (`MetricFrame`) | Algorithmic audit across personal status/sex, age, and foreign worker |
-| **Audit Persistence**| SQLAlchemy, PostgreSQL / SQLite | Inference logging, model versioning, non-sensitive audit history |
+| **Deployment & Config** | Environment Variables (`.env`) | Dynamic database URLs, cryptographic secrets, and CORS origins |
 
 ---
 
-## 📊 Dataset & Modeling Details
+## 🗄️ Database Schema & Relationships
 
-- **Dataset**: Original UCI Statlog German Credit dataset (`1,000` instances, 20 features: 7 numerical, 13 categorical).
-- **Target Encoding**: `1 = Good Credit Risk`, `0 = Bad Credit Risk`.
-- **Partitioning**: Stratified 70% Train (`700`), 15% Validation (`150`), 15% Test (`150`) with `random_state=42`. Preprocessing fitted strictly on training data to eliminate data leakage.
-- **Model Performance**:
-  - Test Accuracy: `76.7%`
-  - Test ROC-AUC: `0.8226`
-  - Test F1-Score: `0.849`
-  - Asymmetric Cost: `119 DM` (penalizing false approvals at 5:1 vs. false rejections at 1:1)
-- **Conformal Calibration**:
-  - Nominal Confidence: `90.0%`
-  - Empirical Test Coverage: `91.3%`
-  - Average Prediction Set Size: `1.373`
+### `users` Table
+| Column | Type | Constraints / Description |
+| :--- | :--- | :--- |
+| `id` | Integer | Primary Key, Autoincrement |
+| `first_name` | String(100) | Mandatory |
+| `last_name` | String(100) | Mandatory |
+| `date_of_birth` | String(30) | Format YYYY-MM-DD |
+| `gender` | String(30) | Male, Female, Other, Prefer not to say |
+| `phone` | String(30) | Validated telephone format |
+| `email` | String(150) | Unique, Index, Corporate email |
+| `organization` | String(150) | Company / Organization name |
+| `job_title` | String(150) | Professional title |
+| `department` | String(100) | Department name |
+| `years_of_experience`| Float | 0 to 70 |
+| `username` | String(100) | Unique, Index (3-30 chars) |
+| `password_hash` | String(255) | 12-round salted bcrypt hash |
+| `role` | String(50) | Default: `user` (never selectable on registration) |
+| `is_active` | Boolean | Default: `True` |
+| `terms_accepted_at`| DateTime | Timestamp when Terms of Service accepted |
+| `created_at` | DateTime | Account creation timestamp |
+| `updated_at` | DateTime | Last profile update timestamp |
+| `last_login` | DateTime | Updated on every successful authentication |
+
+### `analyses` Table
+| Column | Type | Constraints / Description |
+| :--- | :--- | :--- |
+| `id` | Integer | Primary Key, Autoincrement |
+| `user_id` | Integer | Foreign Key (`users.id`, `ON DELETE CASCADE`), Index |
+| `analysis_name` | String(200) | Optional user-defined name |
+| `applicant_reference`| String(100)| Optional non-identifying reference |
+| `input_features` | JSON / JSONB | Validated applicant features |
+| `predicted_class` | String(50) | Good Credit Risk or Bad Credit Risk |
+| `good_risk_probability`| Float | Model probability for Good credit risk |
+| `bad_risk_probability` | Float | Model probability for Bad credit risk |
+| `shap_results` | JSON / JSONB | Saved SHAP local contributions & narrative |
+| `counterfactual_results`| JSON / JSONB| Saved DiCE recourse alternatives |
+| `uncertainty_results` | JSON / JSONB | Saved MAPIE prediction set & reliability assessment |
+| `fairness_results` | JSON / JSONB | Group-level fairness context snapshot |
+| `decision_summary` | Text | Unified decision-support narrative |
+| `model_version` | String(50) | Model version tag (e.g. `xgboost-v1.0`) |
+| `status` | String(30) | `completed`, `pending`, or `failed` |
+| `error_message` | Text | Sanitized error state if component fails |
+| `created_at` | DateTime | Creation timestamp, Index |
+| `updated_at` | DateTime | Modification timestamp |
+
+**Relationship**: One user has many analyses (`User.analyses <-> Analysis.user`).
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Execution & Setup Guide
 
 ### Prerequisites
-- Python 3.10+
+- Python 3.10+ (Recommended: Python 3.11)
 - Node.js 18+ and npm
+- PostgreSQL 14+ (or Docker Compose; defaults to SQLite for local development)
 
-### 1. Clone the Repository
+### 1. Environment Configuration
+Copy `.env.example` to create your environment configuration:
 ```bash
-git clone https://github.com/SanjanaReddyMosra/XAI-Enabled-Decision-Support-for-Enterprise-Analytics.git
-cd XAI-Enabled-Decision-Support-for-Enterprise-Analytics
+cp .env.example .env
+```
+Ensure the following variables are set in `.env`:
+```ini
+DATABASE_URL=sqlite:///./backend/artifacts/predictions.db
+# Or PostgreSQL:
+# DATABASE_URL=postgresql://xai_user:xai_secure_pass_2026@localhost:5432/xai_credit_db
+
+JWT_SECRET_KEY=xai-enterprise-secret-key-decision-intelligence-2026-production-grade
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+FRONTEND_ORIGIN=http://localhost:5173
+VITE_API_URL=http://localhost:8000
 ```
 
-### 2. Backend Setup
+### 2. Database Migrations (Alembic)
+To apply database migrations to your configured database:
 ```bash
-# Create and activate virtual environment (optional)
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/macOS:
-source venv/bin/activate
+alembic upgrade head
+```
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Start FastAPI server
+### 3. Start the FastAPI Backend
+```bash
+# From repository root:
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-API Documentation will be available at: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+Interactive OpenAPI documentation will be accessible at: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-### 3. Frontend Setup
+### 4. Start the React Frontend
+In a separate terminal:
 ```bash
-# In a separate terminal:
 cd frontend
 npm install
 npm run dev
 ```
-The React enterprise application will be live at: [http://127.0.0.1:5173](http://127.0.0.1:5173)
+The application will be live at: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 
 ---
 
-## 🧪 Automated Testing
+## 💾 PostgreSQL Database Backup & Restore Procedures
 
-### Backend Unit & Integration Tests
+### Database Backup
+To take a full backup of the persistent PostgreSQL database:
 ```bash
-python backend/tests/test_pipeline.py
+pg_dump -U xai_user -d xai_credit_db -F c -b -v -f xai_credit_backup.dump
 ```
-Validates:
-- UCI dataset loading and structure
-- Data cleaning and preprocessing pipeline (no leakage)
-- Prediction consistency and probability complementarity
-- SHAP attribution generation
-- DiCE recourse perturbations
-- MAPIE conformal set coverage guarantees
-- Fairlearn MetricFrame calculation
-- Single-click `/api/analyze` master orchestration
 
-### End-to-End Live Verification
+### Database Restore
+To restore from a backup:
 ```bash
-python test_e2e_verify.py
+pg_restore -U xai_user -d xai_credit_db -v -c xai_credit_backup.dump
 ```
 
 ---
 
-## 📂 Project Structure
+## 🧪 Comprehensive Automated Verification
 
-```
-.
-├── backend/
-│   ├── app/
-│   │   ├── main.py                     # FastAPI application & master routes
-│   │   ├── db/
-│   │   │   └── database.py             # SQLAlchemy audit log layer
-│   │   ├── models/
-│   │   │   ├── evaluation.py           # Confusion matrix & asymmetric cost calculation
-│   │   │   ├── model_loader.py         # Model artifact loader
-│   │   │   └── train_xgboost.py        # XGBoost training routine
-│   │   ├── preprocessing/
-│   │   │   ├── cleaning.py             # 8-step cleaning pipeline
-│   │   │   └── pipeline.py             # ColumnTransformer preprocessor
-│   │   ├── schemas/
-│   │   │   └── schemas.py              # Pydantic request/response schemas
-│   │   └── services/
-│   │       ├── dataset_service.py      # Dataset overview, EDA, & sample generator
-│   │       └── xai_service.py          # SHAP, DiCE, MAPIE, & Fairlearn orchestrator
-│   ├── artifacts/                      # Pretrained models, preprocessors, & calibration data
-│   │   ├── xgboost_model.joblib
-│   │   ├── preprocessing_pipeline.joblib
-│   │   ├── mapie_model.joblib
-│   │   ├── splits_data.joblib
-│   │   ├── feature_metadata.json
-│   │   ├── model_metadata.json
-│   │   ├── evaluation_results.json
-│   │   └── fairness_reports.json
-│   ├── scripts/
-│   │   └── train.py                    # Independent training & calibration pipeline
-│   └── tests/
-│       └── test_pipeline.py            # Automated test suite
-├── data/
-│   ├── raw/
-│   │   ├── german.data                 # Original UCI Statlog German Credit Data
-│   │   └── german.doc                  # Dataset attribute documentation
-│   └── processed/
-├── frontend/
-│   ├── src/
-│   │   ├── components/                 # Layout, headers, badges, state indicators
-│   │   ├── context/
-│   │   │   └── PredictionContext.jsx   # Shared analysis state & active customer
-│   │   ├── pages/                      # 14 enterprise analytics views
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── PredictionPage.jsx      # Primary underwriting form & decision output
-│   │   │   ├── ShapPage.jsx            # Local & global feature attributions
-│   │   │   ├── CounterfactualPage.jsx  # DiCE actionable recourse
-│   │   │   ├── UncertaintyPage.jsx     # MAPIE conformal prediction sets
-│   │   │   ├── FairnessPage.jsx        # Fairlearn disparity audits
-│   │   │   ├── DatasetPage.jsx
-│   │   │   ├── DataQualityPage.jsx
-│   │   │   ├── VisualizationPage.jsx
-│   │   │   ├── TrainingPage.jsx
-│   │   │   ├── EvaluationPage.jsx
-│   │   │   ├── ModelComparisonPage.jsx
-│   │   │   ├── ArchitecturePage.jsx
-│   │   │   └── AboutPage.jsx
-│   │   ├── services/
-│   │   │   └── api.js                  # Axios client
-│   │   ├── App.jsx
-│   │   ├── index.css                   # Enterprise light design tokens
-│   │   └── router.jsx
-│   ├── package.json
-│   └── vite.config.js
-├── models/                             # Benchmark model artifacts
-├── requirements.txt                    # Python dependencies
-├── test_e2e_verify.py                  # Live end-to-end verification script
-└── README.md
+### Mandatory 20-Scenario Acceptance Test Suite
+Execute the end-to-end verification covering all 20 criteria from Section 15:
+```bash
+python backend/tests/test_master_e2e.py
 ```
 
----
-
-## 🔒 Security & Underwriting Policy
-
-- All inputs are strictly sanitized and bound by domain ranges through Pydantic.
-- Preprocessing and calibration data splits are isolated to prevent data leakage.
-- Database audit logs strip sensitive identification parameters and only persist decision telemetry.
-- DiCE counterfactuals enforce realistic feature mutability boundaries (e.g. non-decreasing age, valid categorical domains).
-- MAPIE conformal sets provide rigorous finite-sample coverage guarantees, distinguishing high-confidence decisions from ambiguous cases requiring manual underwriter review.
+**Verified Scenarios**:
+1. User registration with personal and professional details
+2. Duplicate email and username rejection
+3. Rejection of weak passwords, invalid emails, password mismatches, and unaccepted terms
+4. Verification of 12-round bcrypt password hashing in database
+5. User authentication and JWT / cookie session creation
+6. Rejection of invalid credentials
+7. Rejection of unauthenticated requests to protected endpoints
+8. Invalidation of session upon logout
+9. Profile view and permitted field update
+10. Submission of separate German Credit applicant data
+11. Dynamic execution of XGBoost, SHAP, DiCE, and MAPIE models
+12. Persistence of completed analysis and user association
+13. Retrieval of identical saved analysis upon page reload
+14. Preservation of user history across login sessions
+15. Preservation of records across application restarts
+16. Multi-tenant isolation (User B cannot access User A's analyses; returns 404)
+17. Historical analysis returned from database snapshot without silent re-inference
+18. Secure analysis deletion according to retention policy
+19. Calculation of dashboard statistics from real database records
+20. Safe failure handling without inventing fabricated outputs
 
 ---
 
 ## 📄 License
-This project is developed for academic and enterprise research under the MIT License.
+This platform is developed for enterprise analytics and academic research under the MIT License.

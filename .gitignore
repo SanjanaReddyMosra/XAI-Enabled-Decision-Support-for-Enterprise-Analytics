@@ -27,6 +27,11 @@ backend/artifacts/predictions.db
 *.sqlite3
 *.db
 
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
 # Operating System & IDE Files
 .DS_Store
 Thumbs.db
@@ -35,3 +40,4 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+

@@ -6,12 +6,30 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Database configuration: defaults to SQLite for local zero-dependency operation,
 # or connects to PostgreSQL if DATABASE_URL environment variable is provided.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/artifacts/predictions.db")
+RAW_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/artifacts/predictions.db")
 
-# For SQLite, check_same_thread=False is needed for multi-threaded FastAPI workers
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+# Fix common Heroku/Render/AWS Postgres URL format 'postgres://' -> 'postgresql://'
+if RAW_DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = RAW_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+else:
+    DATABASE_URL = RAW_DATABASE_URL
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# For SQLite, ensure directory exists and check_same_thread=False
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+    # Ensure sqlite directory exists
+    sqlite_path = DATABASE_URL.replace("sqlite:///", "")
+    if sqlite_path and not sqlite_path.startswith(":memory:"):
+        db_dir = os.path.dirname(os.path.abspath(sqlite_path))
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True if not DATABASE_URL.startswith("sqlite") else False
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -19,6 +37,7 @@ class PredictionAuditLog(Base):
     __tablename__ = "prediction_audit_logs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, nullable=True, index=True)
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     model_version = Column(String(50), default="xgboost-v1.0")
     prediction_class = Column(Integer)
@@ -29,11 +48,17 @@ class PredictionAuditLog(Base):
     top_shap_factors = Column(Text)  # JSON serialized
     applicant_metadata = Column(Text)  # Non-sensitive JSON summary
 
-# Create database tables if they do not exist
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print("Database initialization notice:", e)
+def init_db():
+    """Initializes and creates all database tables for users, analyses, and audit logs."""
+    try:
+        import backend.app.auth.models  # Ensures User model is registered
+        import backend.app.models.analysis  # Ensures Analysis model is registered
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print("Database initialization notice:", e)
+
+# Run initial table creation
+init_db()
 
 def log_prediction_to_db(
     prediction_class: int,
@@ -43,12 +68,12 @@ def log_prediction_to_db(
     conformal_set: list,
     top_shap: list,
     features: dict,
-    model_version: str = "xgboost-v1.0"
+    model_version: str = "xgboost-v1.0",
+    user_id: int = None
 ):
     """Safely logs an inference event to the audit table without sensitive leakage."""
     db = SessionLocal()
     try:
-        # Non-sensitive metadata summary
         safe_meta = {
             "duration": features.get("duration"),
             "credit_amount": features.get("credit_amount"),
@@ -58,6 +83,7 @@ def log_prediction_to_db(
         }
         
         record = PredictionAuditLog(
+            user_id=user_id,
             model_version=model_version,
             prediction_class=prediction_class,
             prediction_label=prediction_label,

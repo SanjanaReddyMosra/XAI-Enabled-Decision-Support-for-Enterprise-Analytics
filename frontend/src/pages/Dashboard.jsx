@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Sparkles,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  History
 } from 'lucide-react';
 import api from '../services/api';
 import { usePrediction } from '../context/PredictionContext';
@@ -132,6 +133,35 @@ export const Dashboard = () => {
 
       {/* Decision Pipeline Visual */}
       <DecisionPipeline />
+
+      {/* Personalized Analyst History Summary (from persistent PostgreSQL records) */}
+      {summaryData?.user_stats && summaryData.user_stats.total_analyses > 0 && (
+        <div className="card" style={{ marginBottom: '24px', padding: '18px 24px', backgroundColor: '#FAFCFD', borderLeft: '4px solid var(--teal-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <History size={16} color="var(--teal-primary)" />
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--navy-deep)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Your Saved Decision History (PostgreSQL Persisted)
+                </h3>
+              </div>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>
+                You have conducted <strong>{summaryData.user_stats.total_analyses}</strong> saved credit evaluations (<strong>{summaryData.user_stats.good_risk_count}</strong> Good Risk / <strong>{summaryData.user_stats.bad_risk_count}</strong> Bad Risk) using active model version <strong>{summaryData.user_stats.model_version}</strong>.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Link to="/history" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <History size={13} />
+                <span>View All Saved Records</span>
+              </Link>
+              <Link to="/prediction" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
+                + New Analysis
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Analytics Workspace Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px', marginBottom: '24px' }}>

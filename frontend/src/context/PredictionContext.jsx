@@ -71,7 +71,7 @@ export const PredictionProvider = ({ children }) => {
     initialize();
   }, []);
 
-  const runMasterAnalysis = async (features, customerId = null, modelName = 'xgboost', confidenceLevel = 0.90) => {
+  const runMasterAnalysis = async (features, customerId = null, modelName = 'xgboost', confidenceLevel = 0.90, analysisName = null, applicantReference = null) => {
     setLoading(true);
     setError(null);
     try {
@@ -81,7 +81,9 @@ export const PredictionProvider = ({ children }) => {
         applicant: features,
         customer_id: customerId,
         model_name: modelName,
-        confidence_level: confidenceLevel
+        confidence_level: confidenceLevel,
+        analysis_name: analysisName,
+        applicant_reference: applicantReference
       });
       setMasterAnalysisResult(res);
       const predNorm = {

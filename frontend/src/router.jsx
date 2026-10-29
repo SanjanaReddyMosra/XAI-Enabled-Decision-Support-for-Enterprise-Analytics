@@ -1,6 +1,14 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import ProtectedRoute from './components/common/ProtectedRoute';
+
+// Public Authentication Pages
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+
+// Protected Application Pages
 import Dashboard from './pages/Dashboard';
 import DatasetPage from './pages/DatasetPage';
 import DataQualityPage from './pages/DataQualityPage';
@@ -13,13 +21,35 @@ import ShapPage from './pages/ShapPage';
 import CounterfactualPage from './pages/CounterfactualPage';
 import UncertaintyPage from './pages/UncertaintyPage';
 import FairnessPage from './pages/FairnessPage';
+import AnalysisHistoryPage from './pages/AnalysisHistoryPage';
+import ProfilePage from './pages/ProfilePage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import ArchitecturePage from './pages/ArchitecturePage';
 import AboutPage from './pages/AboutPage';
 
 export const router = createBrowserRouter([
+  // Public Authentication Routes
+  {
+    path: '/login',
+    element: <LoginPage />
+  },
+  {
+    path: '/register',
+    element: <RegisterPage />
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPasswordPage />
+  },
+
+  // Protected Application Routes
   {
     path: '/',
-    element: <Layout />,
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -72,6 +102,18 @@ export const router = createBrowserRouter([
       {
         path: 'fairness',
         element: <FairnessPage />
+      },
+      {
+        path: 'history',
+        element: <AnalysisHistoryPage />
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />
+      },
+      {
+        path: 'change-password',
+        element: <ChangePasswordPage />
       },
       {
         path: 'architecture',

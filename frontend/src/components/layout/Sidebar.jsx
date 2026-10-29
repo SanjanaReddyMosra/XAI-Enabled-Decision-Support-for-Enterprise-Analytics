@@ -13,16 +13,19 @@ import {
   GitBranch,
   ShieldQuestion,
   Scale,
+  History,
+  User,
   Network,
-  Info,
-  Layers
+  Info
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const navGroups = [
   {
     title: 'OVERVIEW',
     items: [
-      { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }
+      { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { name: 'Analysis History', path: '/history', icon: History }
     ]
   },
   {
@@ -47,8 +50,9 @@ const navGroups = [
     ]
   },
   {
-    title: 'SYSTEM',
+    title: 'SYSTEM & PROFILE',
     items: [
+      { name: 'My Profile', path: '/profile', icon: User },
       { name: 'Architecture', path: '/architecture', icon: Network },
       { name: 'About', path: '/about', icon: Info }
     ]
@@ -56,13 +60,14 @@ const navGroups = [
 ];
 
 export const Sidebar = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
+
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Brand & Abstract SVG Mark */}
       <div className="sidebar-header">
         <div className="brand-icon-wrapper">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            {/* Abstract node workflow: Prediction -> Explanation -> Decision */}
             <circle cx="5" cy="12" r="3" fill="#E5B95C" stroke="none" />
             <path d="M8 12h8" stroke="#FFFFFF" strokeDasharray="2 2" />
             <circle cx="12" cy="12" r="2.5" fill="#4F9C99" stroke="none" />
@@ -102,11 +107,15 @@ export const Sidebar = ({ isOpen, onClose }) => {
         ))}
       </nav>
 
-      {/* Enterprise System Info in Footer */}
+      {/* Enterprise System Info & User in Footer */}
       <div className="sidebar-footer">
         <div>
-          <span style={{ fontWeight: 600, color: 'var(--navy-deep)' }}>German Credit XAI</span>
-          <div style={{ fontSize: '10.5px' }}>v1.0 • Academic Prod</div>
+          <span style={{ fontWeight: 600, color: 'var(--navy-deep)', display: 'block' }}>
+            {user ? `${user.first_name} ${user.last_name}` : 'German Credit XAI'}
+          </span>
+          <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+            {user ? user.organization || 'Enterprise Analyst' : 'v1.0 • Academic Prod'}
+          </div>
         </div>
         <span className="badge badge-teal" style={{ fontSize: '10px' }}>Active</span>
       </div>

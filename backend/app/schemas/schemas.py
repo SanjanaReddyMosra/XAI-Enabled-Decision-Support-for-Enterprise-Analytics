@@ -56,6 +56,8 @@ class AnalyzeRequest(BaseModel):
     customer_id: Optional[int] = None
     model_name: Optional[str] = "xgboost"
     confidence_level: Optional[float] = 0.90
+    analysis_name: Optional[str] = None
+    applicant_reference: Optional[str] = None
 
 class PredictionDetail(BaseModel):
     prediction_class: int
@@ -118,12 +120,57 @@ class MasterAnalysisResponse(BaseModel):
     success: bool = True
     customer_id: Optional[int] = None
     audit_id: Optional[int] = None
+    analysis_id: Optional[int] = None
+    created_at: Optional[str] = None
+    model_version: Optional[str] = "xgboost-v1.0"
+    status: Optional[str] = "completed"
+    analysis_name: Optional[str] = None
+    applicant_reference: Optional[str] = None
     prediction: PredictionDetail
     explanation: ExplanationDetail
     counterfactuals: CounterfactualDetail
     uncertainty: UncertaintyDetail
     fairness: FairnessDetail
     decision_summary: str
+
+# --- Persistent Analysis Entity Schemas ---
+class AnalysisItemResponse(BaseModel):
+    id: int
+    user_id: int
+    analysis_name: Optional[str] = None
+    applicant_reference: Optional[str] = None
+    input_features: Dict[str, Any]
+    predicted_class: str
+    good_risk_probability: float
+    bad_risk_probability: float
+    shap_results: Optional[Any] = None
+    counterfactual_results: Optional[Any] = None
+    uncertainty_results: Optional[Any] = None
+    fairness_results: Optional[Any] = None
+    decision_summary: Optional[str] = None
+    model_version: str
+    status: str
+    error_message: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+class PaginatedAnalysesResponse(BaseModel):
+    items: List[AnalysisItemResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+class AnalysisPatchRequest(BaseModel):
+    analysis_name: Optional[str] = Field(None, max_length=200)
+    applicant_reference: Optional[str] = Field(None, max_length=100)
+
+class AnalysisStatsResponse(BaseModel):
+    total_analyses: int
+    good_risk_count: int
+    bad_risk_count: int
+    recent_analyses: List[Dict[str, Any]]
+    model_version: str
 
 # --- Dataset Schemas ---
 class DatasetOverview(BaseModel):

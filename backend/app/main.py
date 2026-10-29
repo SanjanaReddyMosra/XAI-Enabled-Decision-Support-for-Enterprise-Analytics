@@ -1,6 +1,7 @@
 import os
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 
 from backend.app.schemas.schemas import (
@@ -32,21 +33,40 @@ from backend.app.models.model_loader import (
     get_multi_model_comparison
 )
 from backend.app.models.train_xgboost import train_xgboost_model
+from backend.app.auth.dependencies import get_db, get_optional_current_user
+from backend.app.auth.models import User
+from backend.app.auth.router import auth_router
+from backend.app.routers.analyses import analyses_router
+from backend.app.services.analysis_service import save_analysis, get_user_dashboard_stats
 
 app = FastAPI(
     title="XAI Decision Intelligence API",
-    description="Enterprise Analytics & Explainable AI Backend for Credit Risk Decision Support",
-    version="1.0.0"
+    description="Enterprise Analytics & Explainable AI Backend for Credit Risk Decision Support with Authentication & Persistent History",
+    version="2.0.0"
 )
 
-# Enable CORS for React frontend (Vite dev server default ports)
+# Configure CORS with credentials support
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+frontend_env = os.getenv("FRONTEND_ORIGIN")
+if frontend_env and frontend_env not in allowed_origins:
+    allowed_origins.append(frontend_env)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register Authentication and Analysis routers
+app.include_router(auth_router)
+app.include_router(analyses_router)
 
 @app.get("/api/health", response_model=HealthResponse)
 def health_check():
@@ -69,14 +89,19 @@ def health_check():
 
 # ====================================================================
 # MASTER USER JOURNEY API: POST /api/analyze
-# Executes: Validate -> Transform -> XGBoost -> SHAP -> DiCE -> MAPIE
+# Executes: Validate -> Transform -> XGBoost -> SHAP -> DiCE -> MAPIE -> Save to PostgreSQL/SQLite
 # ====================================================================
 @app.post("/api/analyze", response_model=MasterAnalysisResponse)
-def analyze_applicant(payload: AnalyzeRequest):
+def analyze_applicant(
+    payload: AnalyzeRequest,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Primary End-to-End Decision Support Endpoint.
     Validates input and dynamically executes XGBoost prediction, SHAP attribution,
     DiCE counterfactuals, MAPIE conformal sets, and fairness auditing in one request.
+    When invoked by an authenticated user, automatically persists the decision snapshot.
     """
     applicant_obj = payload.applicant or payload.features
     
@@ -106,6 +131,28 @@ def analyze_applicant(payload: AnalyzeRequest):
             model_name=payload.model_name or "xgboost",
             confidence_level=payload.confidence_level or 0.90
         )
+
+        # Persistence to PostgreSQL/SQLite if user is authenticated
+        if current_user:
+            try:
+                saved = save_analysis(
+                    db=db,
+                    user_id=current_user.id,
+                    features=applicant_dict,
+                    master_result=result,
+                    analysis_name=payload.analysis_name,
+                    applicant_reference=payload.applicant_reference,
+                    model_name=payload.model_name or "xgboost"
+                )
+                result["analysis_id"] = saved.id
+                result["created_at"] = saved.created_at.isoformat() if saved.created_at else None
+                result["analysis_name"] = saved.analysis_name
+                result["applicant_reference"] = saved.applicant_reference
+                result["model_version"] = saved.model_version
+                result["status"] = saved.status
+            except Exception as save_err:
+                print("Persistent analysis storage notice:", save_err)
+
         return result
     except Exception as e:
         print("Analysis error:", e)
@@ -295,7 +342,10 @@ def audit_fairness(sensitive_attribute: str = Query("personal_status"), model_na
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/dashboard-summary")
-def dashboard_summary():
+def dashboard_summary(
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db)
+):
     try:
         eval_metrics = _ARTIFACT_CACHE["evaluation"] or load_model_evaluation("xgboost")
         splits = _ARTIFACT_CACHE["splits"]
@@ -305,6 +355,13 @@ def dashboard_summary():
         fairness = get_fairness_audit("personal_status", model_name="xgboost")
         sample_feat = splits["X_test_raw"].iloc[1].to_dict()
         pred_sample = predict_single_applicant(sample_feat, model_name="xgboost", customer_id=int(splits["X_test_raw"].index[1]))
+
+        user_stats = None
+        if current_user:
+            try:
+                user_stats = get_user_dashboard_stats(db, current_user.id)
+            except Exception as ue:
+                print("User dashboard stats notice:", ue)
 
         return {
             "model_name": "XGBoost Classifier",
@@ -320,7 +377,8 @@ def dashboard_summary():
             "fairness_status": "Disparity Flagged" if fairness["disparity_detected"] else "Within Tolerance",
             "fairness_attribute": fairness["sensitive_attribute"],
             "demographic_parity_diff": fairness["demographic_parity_difference"],
-            "default_prediction": pred_sample
+            "default_prediction": pred_sample,
+            "user_stats": user_stats
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -333,4 +391,3 @@ def get_prediction_history(limit: int = Query(20, ge=1, le=100)):
         return get_recent_prediction_logs(limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
